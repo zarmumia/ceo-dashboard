@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CEO Dashboard · Demo</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <div>
+    <div class="kicker">CEO dashboard · demo data</div>
+    <h1>The whole business at a glance</h1>
+    <p class="sub">Where the money flows and where it gets stuck: one page that updates itself.</p>
+  </div>
+  <div class="asof" id="asof"></div>
+</header>
+
+<main>
+  <section class="kpis" id="kpis"></section>
+
+  <section class="grid">
+    <div class="card wide">
+      <h2>The funnel: how many cases at each stage now</h2>
+      <div id="funnel"></div>
+      <div id="alerts"></div>
+    </div>
+    <div class="card">
+      <h2>Closings by rep · last 30 days</h2>
+      <div id="reps"></div>
+      <h2 class="mt">Where leads come from</h2>
+      <div id="sources"></div>
+    </div>
+  </section>
+
+  <p class="note" id="quality"></p>
+</main>
+
+<footer>Fake sample data · Built by Fanny Rabinovitch · Zarmumia</footer>
+
+<script type="module">
+import * as m from "./metrics.js";
+
+const fmt = new Intl.NumberFormat("en-US");
+const pct = (x) => (x == null ? "–" : Math.round(x * 100) + "%");
+const bar = (label, value, max, cls = "") => `
+  <div class="bar ${cls}"><span>${label}</span>
+    <div class="track"><div class="fill" style="width:${max ? (value / max) * 100 : 0}%"></div></div>
+    <b>${fmt.format(value)}</b></div>`;
+
+const res = await fetch("data/sample.json");
+const { generated_at: now, currency, cases } = await res.json();
+
+document.getElementById("asof").textContent = "As of " + new Date(now).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+
+const kpis = [
+  [pct(m.responseRate(cases, now)), "of this week's leads got a first response"],
+  [m.closedThisWeek(cases, now), "cases signed this week"],
+  [new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(m.expectedIncome(cases)), "expected income from open cases"],
+  [cases.length, "cases in the system"],
+];
+document.getElementById("kpis").innerHTML = kpis.map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+
+const f = m.funnel(cases);
+const stuck = m.bottlenecks(cases, now);
+const max = Math.max(...f.map((s) => s.count));
+document.getElementById("funnel").innerHTML = f
+  .map((s) => bar(s.label, s.count, max, stuck.some((b) => b.stage === s.key) ? "warn" : ""))
+  .join("");
+const label = Object.fromEntries(m.STAGES.map((s) => [s.key, s.label]));
+document.getElementById("alerts").innerHTML = stuck
+  .map((b) => `<div class="alert"><b>Bottleneck:</b> ${b.count} case(s) in “${label[b.stage]}” for more than ${b.limit} days</div>`)
+  .join("");
+
+const reps = m.closingsByRep(cases, now);
+const rmax = Math.max(1, ...reps.map((r) => r.count));
+document.getElementById("reps").innerHTML = reps.map((r) => bar(r.rep, r.count, rmax)).join("");
+
+document.getElementById("sources").innerHTML = m.leadSources(cases)
+  .map((s) => `<div class="src"><span>${s.source}</span><b>${pct(s.share)}</b></div>`).join("");
+
+const q = m.dataQuality(cases);
+document.getElementById("quality").textContent =
+  `Data quality: ${pct(q.ok)} of records are complete (${q.missing} missing an owner, source or stage date). ` +
+  `The dashboard is only as good as the data behind it.`;
+</script>
+</body>
+</html>

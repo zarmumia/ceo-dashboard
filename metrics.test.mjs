@@ -41,6 +41,28 @@ test("data quality counts incomplete records", () => {
   assert.equal(m.dataQuality([c({}), c({ owner: null })]).missing, 1);
 });
 
+test("malformed dates are reported, never silently counted", () => {
+  const bad = [c({ stage: "waiting_docs", stage_since: "20/10/2026" }), c({ created_at: "not a date", first_contact_at: NOW })];
+  assert.deepEqual(m.bottlenecks(bad, NOW), []);
+  assert.equal(m.responseRate(bad, NOW), 0); // only the valid-date case counts, and it has no first contact
+  const q = m.dataQuality(bad);
+  assert.equal(q.missing, 2);
+  assert.equal(q.byField.stage_since, 1);
+  assert.equal(q.byField.created_at, 1);
+});
+
+test("unknown stages are surfaced instead of vanishing from the funnel", () => {
+  const cases = [c({ stage: "new" }), c({ stage: "on_hold" })];
+  assert.equal(m.unknownStages(cases), 1);
+  assert.equal(m.dataQuality(cases).byField.stage, 1);
+});
+
+test("toTime never returns NaN", () => {
+  assert.equal(m.toTime("nope"), null);
+  assert.equal(m.toTime(null), null);
+  assert.equal(typeof m.toTime(NOW), "number");
+});
+
 test("sample data loads and produces a sane funnel", () => {
   const { cases, generated_at } = JSON.parse(readFileSync(new URL("./data/sample.json", import.meta.url)));
   assert.equal(m.funnel(cases).reduce((s, x) => s + x.count, 0), cases.length);

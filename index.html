@@ -42,13 +42,16 @@
 import * as m from "./metrics.js";
 
 const fmt = new Intl.NumberFormat("en-US");
+// CRM data (rep names, lead sources) is untrusted text: escape it before it touches HTML.
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 const pct = (x) => (x == null ? "–" : Math.round(x * 100) + "%");
 const bar = (label, value, max, cls = "") => `
-  <div class="bar ${cls}"><span>${label}</span>
+  <div class="bar ${cls}"><span>${esc(label)}</span>
     <div class="track"><div class="fill" style="width:${max ? (value / max) * 100 : 0}%"></div></div>
     <b>${fmt.format(value)}</b></div>`;
 
 const res = await fetch("data/sample.json");
+if (!res.ok) throw new Error(`Could not load data (${res.status})`);
 const { generated_at: now, currency, cases } = await res.json();
 
 document.getElementById("asof").textContent = "As of " + new Date(now).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
@@ -77,11 +80,11 @@ const rmax = Math.max(1, ...reps.map((r) => r.count));
 document.getElementById("reps").innerHTML = reps.map((r) => bar(r.rep, r.count, rmax)).join("");
 
 document.getElementById("sources").innerHTML = m.leadSources(cases)
-  .map((s) => `<div class="src"><span>${s.source}</span><b>${pct(s.share)}</b></div>`).join("");
+  .map((s) => `<div class="src"><span>${esc(s.source)}</span><b>${pct(s.share)}</b></div>`).join("");
 
 const q = m.dataQuality(cases);
 document.getElementById("quality").textContent =
-  `Data quality: ${pct(q.ok)} of records are complete (${q.missing} missing an owner, source or stage date). ` +
+  `Data quality: ${pct(q.ok)} of records are complete (${q.missing} with a missing or invalid owner, source, stage or date). ` +
   `The dashboard is only as good as the data behind it.`;
 </script>
 </body>

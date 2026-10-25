@@ -2,6 +2,9 @@
 
 **The whole business at a glance: where the money flows and where it gets stuck.**
 
+> **About this repo:** a working demo from the [Zarmumia](https://zarmumia.co.il) portfolio. It shows the approach, not a finished product: rules a business owner can read, privacy first, and building on the tools a business already has. In client work it is adapted to the specific CRM and processes.
+
+
 ![Dashboard screenshot](docs/screenshot.png)
 
 Most small-business CRMs are full of data, but the owner still can't answer simple questions: *How many leads are waiting? Where are cases stuck? What's coming in next quarter?* This is a single page that answers them. It's macro, not granular: the funnel, the bottlenecks and the money, nothing more.
